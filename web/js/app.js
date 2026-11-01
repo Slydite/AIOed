@@ -28,20 +28,30 @@ function updateUI(data) {
     fpsVal.innerText = data.fps.toFixed(1);
   }
 
-  // Mode buttons
+  // Mode buttons & Top Nav Tabs
   ['monitor', 'media', 'text', 'off'].forEach(m => {
     const btn = document.getElementById('btnMode' + m.charAt(0).toUpperCase() + m.slice(1));
-    if (btn) btn.className = 'btn' + (data.mode === m ? ' active' : '') + (m === 'off' ? ' btn-danger' : '');
+    if (btn) {
+      const isStandby = (m === 'off');
+      const isActive = (data.mode === m);
+      if (btn.classList.contains('nav-tab')) {
+        btn.className = 'nav-tab' + (isStandby ? ' nav-tab-standby' : '') + (isActive ? ' active' : '');
+      } else {
+        btn.className = 'btn' + (isActive ? ' active' : '') + (isStandby ? ' btn-danger' : '');
+      }
+    }
   });
 
   // Panel visibility based on mode
   const themeSec = document.getElementById('themeSection');
   const mediaSec = document.getElementById('mediaSection');
   const textSec = document.getElementById('textSection');
+  const standbySec = document.getElementById('standbySection');
 
   if (themeSec) themeSec.style.display = data.mode === 'monitor' ? 'block' : 'none';
   if (mediaSec) mediaSec.style.display = data.mode === 'media' ? 'block' : 'none';
   if (textSec) textSec.style.display = data.mode === 'text' ? 'block' : 'none';
+  if (standbySec) standbySec.style.display = data.mode === 'off' ? 'block' : 'none';
 
   // Orientation
   const orientDisp = document.getElementById('orientDisplay');

@@ -25,7 +25,7 @@ function renderMedia(mediaList, activeMediaId) {
     };
 
     const activeBadge = m.id === activeMediaId ? '<span class="media-active-pill">ACTIVE</span>' : '';
-    const cropBtn = m.has_source ? `<button class="media-action-btn" onclick="openCropModal('${m.id}')">✂️ Crop</button>` : '';
+    const cropBtn = m.has_source ? `<button class="media-action-btn" onclick="openCropModal('${m.id}')">Crop</button>` : '';
 
     card.innerHTML = `
       ${activeBadge}
@@ -70,7 +70,7 @@ async function handleFileUpload(files) {
 
   const zone = document.getElementById('uploadZone');
   if (zone) {
-    zone.innerHTML = '<div style="color: var(--accent); font-weight: 600;">⏳ Processing & pre-baking frames...</div>';
+    zone.innerHTML = '<div style="color: var(--accent); font-weight: 600;">Encoding & baking RGB565 frames...</div>';
   }
   isUploading = true;
 
@@ -91,7 +91,7 @@ async function handleFileUpload(files) {
     if (zone) {
       zone.innerHTML = `
         <input type="file" id="fileInput" style="display: none;" accept=".gif,.mp4,.webm,.png,.jpg,.jpeg" onchange="handleFileUpload(this.files)">
-        <div style="font-size: 24px; margin-bottom: 6px;">📁</div>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" style="margin-bottom: 8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <div class="upload-text">Click or drag & drop GIF or MP4 here to import</div>
         <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Smart 4:3 center crop & instant RGB565 pre-baking</div>
       `;

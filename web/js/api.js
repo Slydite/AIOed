@@ -99,11 +99,11 @@ function updateAutostartUI(enabled) {
   const btn = document.getElementById('btnAutostart');
   if (btn) {
     if (currentAutostart) {
-      btn.textContent = '✓ Enabled';
-      btn.className = 'btn btn-sm btn-primary active';
+      btn.textContent = 'Startup: On';
+      btn.className = 'device-toggle-btn active';
     } else {
-      btn.textContent = 'Disabled';
-      btn.className = 'btn btn-sm';
+      btn.textContent = 'Startup: Off';
+      btn.className = 'device-toggle-btn';
     }
   }
 }

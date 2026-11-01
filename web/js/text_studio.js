@@ -165,7 +165,7 @@ function updateOverflowBadge(elemId, isOverflow, width) {
   const badge = document.getElementById('badge_overflow_' + elemId);
   if (badge) {
     if (isOverflow) {
-      badge.innerHTML = `<span class="overflow-warn-pill">⚠️ ${width}px / 320px (Too Wide)</span>`;
+      badge.innerHTML = `<span class="overflow-warn-pill">OVERFLOW: ${width}px / 320px</span>`;
     } else {
       badge.innerHTML = '';
     }
@@ -255,7 +255,7 @@ function renderElementsCards() {
     };
 
     const deleteBtn = activeTextConfig.elements.length > 1
-      ? `<button class="elem-delete-btn" onclick="deleteTextElement('${elem.id}')">🗑️ Remove</button>`
+      ? `<button class="elem-delete-btn" onclick="deleteTextElement('${elem.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -1px; margin-right: 4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Remove</button>`
       : '';
 
     let fontOpts = '';
@@ -687,7 +687,7 @@ async function bakeTextAnimation() {
   const btn = event ? event.target : null;
   const originalText = btn ? btn.innerText : '';
   if (btn) {
-    btn.innerText = '⏳ Baking...';
+    btn.innerText = 'Baking Loop...';
     btn.disabled = true;
   }
 

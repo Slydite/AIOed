@@ -11,8 +11,12 @@
     <header>
       <div class="logo-group">
         <span class="logo-badge">AIOed</span>
-        <h1>DeepCool LM Display Manager</h1>
+        <div>
+          <h1>DeepCool LM Display Manager</h1>
+          <div class="subtitle">Hardware Controller & Telemetry Studio</div>
+        </div>
       </div>
+
       <div class="header-status">
         <div class="pill">
           <span class="dot" id="usbDot"></span>
@@ -28,12 +32,35 @@
       </div>
     </header>
 
+    <!-- Top Mode Navigation Bar -->
+    <div class="top-nav-bar">
+      <nav class="nav-tabs">
+        <button class="nav-tab active" id="btnModeMonitor" onclick="setMode('monitor')">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x2="12" y1="17" x1="12"/></svg>
+          <span>Monitor</span>
+        </button>
+        <button class="nav-tab" id="btnModeMedia" onclick="setMode('media')">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>Media Loop</span>
+        </button>
+        <button class="nav-tab" id="btnModeText" onclick="setMode('text')">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          <span>Text Banner</span>
+        </button>
+        <button class="nav-tab nav-tab-standby" id="btnModeOff" onclick="setMode('off')">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          <span>Standby</span>
+        </button>
+      </nav>
+    </div>
+
     <div class="grid">
       <!-- Left Column: Display Mirror & Hardware Controls -->
       <div>
+        <!-- Hardware Screen Card -->
         <div class="card">
           <div class="card-title">
-            <span>LCD Live Mirror</span>
+            <span>Hardware Mirror</span>
             <span id="screenStatusBadge" class="pill" style="font-size: 10px; color: var(--accent); font-weight: 700;">25 FPS Live</span>
           </div>
 
@@ -41,25 +68,25 @@
             <!-- MJPEG Live Stream: zero lag 25 FPS stream directly rendered by browser -->
             <img id="previewImg" class="preview-img" src="/api/preview/stream" alt="Live Cooler Screen">
             <div class="preview-info">
-              <span>320x240 RGB565</span>
+              <span>320×240 RGB565</span>
               <span id="orientDisplay">Orientation: 180° (Inverted)</span>
             </div>
           </div>
 
           <!-- Brightness Control Widget -->
           <div class="brightness-box">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <span style="font-size: 13px; font-weight: 600; color: var(--text);">☀️ Display Brightness</span>
-                <span class="control-desc" style="display: block;">Smooth linear dimming (0–100%)</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                <span style="font-size: 12px; font-weight: 600; color: var(--text);">Brightness</span>
               </div>
-              <span id="brightnessBadge" class="pill" style="color: var(--accent); font-weight: 700; font-family: 'Share Tech Mono', monospace;">100%</span>
+              <span id="brightnessBadge" class="pill" style="color: var(--accent); font-weight: 700; font-family: 'Share Tech Mono', monospace; padding: 2px 8px; font-size: 11px;">100%</span>
             </div>
 
             <div class="slider-row">
-              <span style="font-size: 11px; color: var(--text-muted);">10%</span>
+              <span style="font-size: 10px; color: var(--text-muted); font-family: 'Share Tech Mono', monospace;">10%</span>
               <input type="range" id="brightnessSlider" min="10" max="100" step="5" value="100" onchange="setBrightness(this.value)" oninput="updateBrightnessLabel(this.value)">
-              <span style="font-size: 11px; color: var(--text-muted);">100%</span>
+              <span style="font-size: 10px; color: var(--text-muted); font-family: 'Share Tech Mono', monospace;">100%</span>
             </div>
 
             <div class="preset-btns">
@@ -70,80 +97,53 @@
             </div>
           </div>
 
-          <div style="margin-top: 16px;">
-            <div class="control-row">
-              <div>
-                <div class="control-label">Cooler Orientation</div>
-                <div class="control-desc">Mounted upside down (180° inverted)</div>
-              </div>
-              <button class="btn btn-sm" id="btnToggleOrient" onclick="toggleOrientation()">
-                🔄 Rotate 180°
-              </button>
+          <!-- Quick Hardware Controls Grid -->
+          <div class="device-toggles-grid">
+            <button class="device-toggle-btn" id="btnToggleOrient" onclick="toggleOrientation()" title="Rotate display orientation 180°">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>Rotate 180°</span>
+            </button>
+
+            <div class="unit-toggle-group">
+              <button class="unit-btn active" id="btnUnitC" onclick="setTempUnit('C')">°C</button>
+              <button class="unit-btn" id="btnUnitF" onclick="setTempUnit('F')">°F</button>
             </div>
 
-            <div class="control-row">
-              <div>
-                <div class="control-label">Temperature Unit</div>
-                <div class="control-desc">Celsius or Fahrenheit</div>
-              </div>
-              <div style="display: flex; gap: 4px;">
-                <button class="btn btn-sm" id="btnUnitC" onclick="setTempUnit('C')">°C</button>
-                <button class="btn btn-sm" id="btnUnitF" onclick="setTempUnit('F')">°F</button>
-              </div>
-            </div>
-
-            <div class="control-row">
-              <div>
-                <div class="control-label">Run at Startup</div>
-                <div class="control-desc">Start silently on Windows login</div>
-              </div>
-              <div>
-                <button class="btn btn-sm" id="btnAutostart" onclick="toggleAutostart()">Disabled</button>
-              </div>
-            </div>
+            <button class="device-toggle-btn" id="btnAutostart" onclick="toggleAutostart()" title="Launch silently with Windows">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>Startup: Off</span>
+            </button>
           </div>
         </div>
 
         <!-- System Stats Quick HUD -->
         <div class="card">
-          <div class="card-title">Live Telemetry Stream</div>
+          <div class="card-title">
+            <span>Hardware Telemetry</span>
+            <span class="pill" style="font-size: 10px; color: var(--primary);">Real-time</span>
+          </div>
           <div class="sensors-grid" id="sensorsGrid">
             <!-- Populated via JS -->
           </div>
         </div>
       </div>
 
-      <!-- Right Column: Modes, Themes, Media & Text Studio -->
+      <!-- Right Column: Active Workspace (Monitor, Text Studio, Media Library, Standby) -->
       <div>
-        <!-- Mode Switcher -->
-        <div class="card">
-          <div class="card-title">Display Output Mode</div>
-          <div class="btn-group">
-            <button class="btn" id="btnModeMonitor" onclick="setMode('monitor')">
-              📊 Monitor
-            </button>
-            <button class="btn" id="btnModeMedia" onclick="setMode('media')">
-              🎞️ Media Loop
-            </button>
-            <button class="btn" id="btnModeText" onclick="setMode('text')">
-              🔤 Text Banner
-            </button>
-            <button class="btn btn-danger" id="btnModeOff" onclick="setMode('off')">
-              🌙 Standby
-            </button>
-          </div>
-        </div>
-
         <!-- 1. Theme Configuration Section (Visible when mode == monitor) -->
         <div class="card" id="themeSection">
-          <div class="card-title">Monitor Themes & Telemetry Slots</div>
+          <div class="card-title">
+            <span>HUD Themes & Metrics</span>
+            <span class="control-desc" style="font-weight: 400;">320×240 High-FPS Live Dashboard</span>
+          </div>
           <div class="themes-grid" id="themesContainer">
             <!-- Populated via JS -->
           </div>
 
           <div class="slots-box" id="slotsBox">
-            <div style="font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 10px;">
-              ⚙️ Customize Telemetry Slots
+            <div class="slots-box-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>Customize Metric Slots</span>
             </div>
             <div id="slotsInputs">
               <!-- Dynamic slot dropdowns -->
@@ -155,13 +155,22 @@
         <div class="card" id="textSection" style="display: none;">
           <div class="card-title">
             <span>Text Animation Studio</span>
-            <button class="btn btn-sm btn-primary" onclick="bakeTextAnimation()">💾 Save as Looping Video</button>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-sm" onclick="addTextElement()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Add Element</span>
+              </button>
+              <button class="btn btn-sm btn-primary" onclick="bakeTextAnimation()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <span>Export Video Loop</span>
+              </button>
+            </div>
           </div>
 
           <!-- Interactive 320x240 Visual Layout Stage -->
           <div class="stage-wrapper">
             <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between; width: 320px;">
-              <span>🖱️ Drag elements in 2D to position:</span>
+              <span>Interactive 2D Position</span>
               <span id="stageCoords" style="font-family: 'Share Tech Mono', monospace; color: var(--accent); font-weight: 600;">X: --  Y: --</span>
             </div>
             <div class="layout-stage" id="layoutStage">
@@ -170,7 +179,7 @@
               <!-- Text elements rendered directly inside via JS -->
             </div>
             <div id="stageNotice" style="font-size: 11px; color: var(--text-muted); margin-top: 8px; width: 320px; text-align: center;">
-              Click any element to select • Drag to reposition (0–320px, 0–240px)
+              Click element to select • Drag in 2D to position
             </div>
           </div>
 
@@ -179,15 +188,11 @@
             <!-- Populated via renderTextElementsUI() in JS -->
           </div>
 
-          <!-- Add Element Action -->
-          <button class="btn btn-primary" style="width: 100%; margin-bottom: 16px; padding: 10px; font-size: 13px;" onclick="addTextElement()">
-            ➕ Add Text Element
-          </button>
-
           <!-- Section: Background, Textures & Speed -->
           <div class="studio-box">
             <div class="studio-box-title">
-              <span>🎨 Background & Animation Speed</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+              <span>Canvas & Timing</span>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
@@ -236,32 +241,33 @@
           </div>
 
           <!-- Storage Folder Location Management Bar -->
-          <div class="brightness-box" style="margin-top: 0; margin-bottom: 14px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="storage-bar">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
               <div>
-                <span style="font-size: 13px; font-weight: 600; color: var(--text);">📂 Media Storage Location</span>
-                <span id="currentStorageDirText" class="control-desc" style="display: block; font-family: monospace; color: var(--primary); margin-top: 2px;">Checking...</span>
+                <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.06em;">Storage Directory</div>
+                <div id="currentStorageDirText" style="font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text); margin-top: 2px;">media_store</div>
               </div>
-              <button class="btn btn-sm" id="btnToggleStorageEdit" onclick="toggleStorageEdit()">Change Folder</button>
             </div>
+            <button class="btn btn-sm" id="btnToggleStorageEdit" onclick="toggleStorageEdit()">Change Folder</button>
+          </div>
 
-            <div id="storageEditBox" style="display: none; margin-top: 12px; border-top: 1px solid var(--card-border); padding-top: 12px;">
-              <label class="control-label" style="font-size: 12px;">New Folder Path:</label>
-              <div style="display: flex; gap: 8px; margin-top: 6px;">
-                <input type="text" id="storagePathInput" placeholder="e.g. D:\DeepCool_Media or media_store">
-                <button class="btn btn-sm btn-primary" onclick="saveStorageLocation()">Save & Switch</button>
-              </div>
-              <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
-                <input type="checkbox" id="moveExistingCheck" checked style="width: auto;">
-                <label for="moveExistingCheck" style="font-size: 11px; color: var(--text-muted); cursor: pointer;">Move existing media loops to the new folder</label>
-              </div>
+          <div id="storageEditBox" style="display: none; margin-top: -8px; margin-bottom: 16px; background: rgba(14, 18, 26, 0.7); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 14px;">
+            <label class="control-label" style="font-size: 12px;">New Folder Path:</label>
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+              <input type="text" id="storagePathInput" placeholder="e.g. D:\DeepCool_Media or media_store">
+              <button class="btn btn-sm btn-primary" onclick="saveStorageLocation()">Save & Switch</button>
+            </div>
+            <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+              <input type="checkbox" id="moveExistingCheck" checked style="width: auto;">
+              <label for="moveExistingCheck" style="font-size: 11px; color: var(--text-muted); cursor: pointer;">Move existing media loops to the new folder</label>
             </div>
           </div>
 
           <!-- Upload Dropzone -->
           <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
             <input type="file" id="fileInput" style="display: none;" accept=".gif,.mp4,.webm,.png,.jpg,.jpeg" onchange="handleFileUpload(this.files)">
-            <div style="font-size: 24px; margin-bottom: 6px;">📁</div>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" style="margin-bottom: 8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             <div class="upload-text">Click or drag & drop GIF or MP4 here to import</div>
             <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Smart 4:3 center crop & instant RGB565 pre-baking</div>
           </div>
@@ -269,6 +275,18 @@
           <div class="media-grid" id="mediaGrid">
             <!-- Media cards populated via JS -->
           </div>
+        </div>
+
+        <!-- 4. Standby Notice Section (Visible when mode == off) -->
+        <div class="card" id="standbySection" style="display: none; text-align: center; padding: 60px 24px;">
+          <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--card-border); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </div>
+          <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Display is in Standby</h2>
+          <p style="font-size: 13px; color: var(--text-muted); max-width: 380px; margin: 0 auto 24px auto;">The LCD panel is dark and USB frame rendering is paused to conserve resources.</p>
+          <button class="btn btn-primary" style="display: inline-flex; max-width: 240px; margin: 0 auto;" onclick="setMode('monitor')">
+            Wake Display
+          </button>
         </div>
       </div>
     </div>
@@ -278,7 +296,10 @@
   <div class="modal-overlay" id="cropModal">
     <div class="modal-card">
       <div class="modal-header">
-        <h2 style="font-size: 16px; font-weight: 700;">✂️ Crop & Trim Video</h2>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"/><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"/></svg>
+          <h2 style="font-size: 16px; font-weight: 700;">Crop & Trim Video</h2>
+        </div>
         <button class="modal-close" onclick="closeCropModal()">✕</button>
       </div>
 
