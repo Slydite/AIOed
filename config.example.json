@@ -1,0 +1,66 @@
+{
+  "mode": "monitor",
+  "orientation": 180,
+  "active_theme": "cyber_stats",
+  "temp_unit": "C",
+  "brightness": 100,
+  "active_media_id": null,
+  "playback_fps_cap": 30,
+  "web_port": 5220,
+  "autostart": false,
+  "media_storage_dir": "media_store",
+  "text_mode_config": {
+    "elements": [
+      {
+        "id": "elem_1",
+        "text": "CYBER DEEPCOOL",
+        "font": "orbitron",
+        "font_size": 22,
+        "x": -1,
+        "y": 50,
+        "align": "center",
+        "color": "#00ffcc",
+        "glow_color": "#0077ff",
+        "effect": "neon_pulse"
+      },
+      {
+        "id": "elem_2",
+        "text": "{time}  ●  LIQUID COOLED",
+        "font": "orbitron",
+        "font_size": 14,
+        "x": -1,
+        "y": 140,
+        "align": "center",
+        "color": "#0088ff",
+        "glow_color": "#0077ff",
+        "effect": "neon_pulse"
+      }
+    ],
+    "bg_color": "#070A12",
+    "bg_style": "grid",
+    "speed": 1.0
+  },
+  "theme_configs": {
+    "cyber_dual": {
+      "slot1": "cpu_power",
+      "slot2": "gpu_temp"
+    },
+    "white_edition": {
+      "slot1": "cpu_temp",
+      "slot2": "gpu_temp"
+    },
+    "single_gauge": {
+      "hero_metric": "cpu_power",
+      "sec1": "cpu_load",
+      "sec2": "cpu_power",
+      "sec3": "gpu_power"
+    },
+    "retro_matrix": {
+      "slot1": "cpu_temp",
+      "slot2": "cpu_power",
+      "slot3": "gpu_temp",
+      "slot4": "gpu_power"
+    }
+  }
+}
+
