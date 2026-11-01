@@ -363,6 +363,14 @@ def create_app(service: DisplayService, web_dir: str = "web") -> FastAPI:
     if os.path.exists(abs_web_dir):
         app.mount("/static", StaticFiles(directory=abs_web_dir), name="static")
 
+        abs_css_dir = os.path.join(abs_web_dir, "css")
+        if os.path.exists(abs_css_dir):
+            app.mount("/css", StaticFiles(directory=abs_css_dir), name="css")
+
+        abs_js_dir = os.path.join(abs_web_dir, "js")
+        if os.path.exists(abs_js_dir):
+            app.mount("/js", StaticFiles(directory=abs_js_dir), name="js")
+
         @app.get("/", response_class=HTMLResponse)
         def serve_index():
             index_path = os.path.join(abs_web_dir, "index.html")
