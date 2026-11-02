@@ -19,8 +19,6 @@ DEVICE_GUID = "{13EB360B-BC1E-46CB-AC8B-EF3DA47B4062}"
 DEFAULT_DEVICE_PATH = rf"\\?\USB#VID_{VENDOR_ID:04X}&PID_{PRODUCT_ID:04X}#3690D8FE1974#{DEVICE_GUID}"
 
 BULK_OUT_ENDPOINT = 0x01
-BULK_IN_ENDPOINT = 0x81
-PIPE_TIMEOUT_POLICY = 0x03  # WinUSB PIPE_TRANSFER_TIMEOUT
 FRAME_SIZE = 320 * 240 * 2  # 153,600 bytes RGB565
 
 kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
@@ -59,7 +57,6 @@ def build_l122_packet(payload: bytes) -> bytes:
 
 INIT_CMD = build_l122_packet(bytes([0x09]))                            # aa 01 00 09 29 91
 REBOOT_CMD = build_l122_packet(bytes([0xEE]))                          # aa 01 00 ee e0 1c
-SCREEN_OFF_CMD = build_l122_packet(bytes([0x03, 0x00, 0x00, 0x00]))    # aa 04 00 03 00 00 00 dc 9b
 FRAME_HEADER = bytes([0xAA, 0x08, 0x00, 0x00, 0x01, 0x00, 0x58, 0x02, 0x00, 0x2C, 0x01, 0xBC, 0x11])
 
 
@@ -135,24 +132,12 @@ class LM360UsbDriver:
         self.winusb_handle = winusb_h
         self.is_connected = True
 
-        # Configure short transfer timeout on Bulk IN pipe so reads never block
-        timeout_ms = wintypes.ULONG(200)
-        winusb.WinUsb_SetPipePolicy(
-            self.winusb_handle,
-            BULK_IN_ENDPOINT,
-            PIPE_TIMEOUT_POLICY,
-            ctypes.sizeof(timeout_ms),
-            ctypes.byref(timeout_ms)
-        )
-
         try:
             with self._io_lock:
                 # Send initialization handshake (opcode 0x09)
                 self._write_pipe_raw(INIT_CMD)
                 time.sleep(0.04)
-                # Set hardware backlight brightness register
-                self._set_hardware_brightness_raw(self.brightness_pct)
-            logger.info(f"Successfully connected DeepCool LM360 WinUSB interface (backlight={self.brightness_pct}%).")
+            logger.info("Successfully connected DeepCool LM360 WinUSB interface.")
             return True
         except Exception as e:
             logger.warning(f"Error during LM360 initialization write: {e}")
@@ -179,68 +164,6 @@ class LM360UsbDriver:
             self.is_connected = False
             raise IOError(f"WinUsb_WritePipe failed (win32 err {err})")
         return written.value
-
-    def _read_pipe_raw(self, max_bytes: int = 512) -> bytes | None:
-        """Internal un-locked pipe read from Bulk IN 0x81 (caller must hold _io_lock)."""
-        if not self.is_connected or not self.winusb_handle:
-            return None
-
-        buf = (ctypes.c_ubyte * max_bytes)()
-        read_bytes = wintypes.ULONG()
-        res = winusb.WinUsb_ReadPipe(
-            self.winusb_handle,
-            BULK_IN_ENDPOINT,
-            buf,
-            max_bytes,
-            ctypes.byref(read_bytes),
-            None
-        )
-        if res and read_bytes.value > 0:
-            return bytes(buf[:read_bytes.value])
-        return None
-
-    def _set_hardware_brightness_raw(self, percent: int) -> bool:
-        """Send opcode 0x07 hardware backlight brightness packet (0..15 range)."""
-        try:
-            hw_val = max(0, min(15, round(percent * 15 / 100.0)))
-            pkt = build_l122_packet(bytes([0x07, hw_val]))
-            self._write_pipe_raw(pkt)
-            # Drain ACK response from Bulk IN
-            self._read_pipe_raw(64)
-            return True
-        except Exception as e:
-            logger.debug(f"Failed to set hardware brightness packet: {e}")
-            return False
-
-    def set_hardware_brightness(self, percent: int) -> bool:
-        """Public thread-safe setter for hardware backlight PWM (0..100%)."""
-        with self._io_lock:
-            return self._set_hardware_brightness_raw(percent)
-
-    def get_hardware_brightness(self) -> int | None:
-        """Query physical hardware backlight brightness via USB Bulk IN (0x81)."""
-        if not self.is_connected or not self.winusb_handle:
-            return None
-        with self._io_lock:
-            try:
-                pkt = build_l122_packet(bytes([0x07]))
-                self._write_pipe_raw(pkt)
-                resp = self._read_pipe_raw(64)
-                if resp and len(resp) >= 5 and resp[0] == 0x55:
-                    r_len = resp[1] | (resp[2] << 8)
-                    payload = resp[3:3+r_len]
-                    if len(payload) >= 2 and payload[0] == 0x07:
-                        hw_val = payload[1]
-                        return round(hw_val * 100 / 15.0)
-            except Exception as e:
-                logger.debug(f"Failed to query hardware brightness: {e}")
-        return None
-
-    def set_hardware_settings(self, brightness: int, angle: int = None) -> bool:
-        """Compatibility wrapper setting hardware brightness and orientation."""
-        if angle is not None:
-            self.orientation_deg = int(angle)
-        return self.set_hardware_brightness(brightness)
 
     def reboot(self) -> bool:
         """Send hardware reboot command (opcode 0xEE) to reset MCU and display registers."""
@@ -300,7 +223,7 @@ class LM360UsbDriver:
                 return False
 
     def set_brightness(self, percent: int) -> bool:
-        """Set display brightness percentage 0..100 with immediate hardware and software scaling."""
+        """Set display brightness percentage 0..100 with immediate vectorized software LUT scaling."""
         val = int(percent)
         # Migrate legacy 1..5 values
         if 1 <= val <= 5:
@@ -309,9 +232,6 @@ class LM360UsbDriver:
 
         self.brightness_pct = target
         self._lut = _build_rgb565_lut(target) if target < 100 else None
-
-        if self.is_connected:
-            self.set_hardware_brightness(target)
 
         logger.info(f"Display brightness set to {target}% (LUT active={self._lut is not None})")
         return True
@@ -327,13 +247,11 @@ class LM360UsbDriver:
         return self.brightness_pct
 
     def screen_off(self) -> bool:
-        """Turn display backlight/screen off (hardware backlight 0% + blank frame)."""
+        """Turn display backlight/screen off by sending blank black frame."""
         if not self.ensure_connected():
             return False
         with self._io_lock:
             try:
-                self._set_hardware_brightness_raw(0)
-                self._write_pipe_raw(SCREEN_OFF_CMD)
                 black_frame = bytes(FRAME_SIZE)
                 self._write_pipe_raw(FRAME_HEADER)
                 self._write_pipe_raw(black_frame)
