@@ -14,6 +14,8 @@ import time
 import zlib
 import psutil
 
+from deepcool_lm.gpu_power import AmdGpuPower
+
 logger = logging.getLogger("deepcool_lm.sensor")
 
 PIPE_NAME = r"\\.\pipe\jzfs_sensor_bridge_v2"
@@ -32,6 +34,7 @@ class SensorBridge:
         self._thread = None
         self._pipe_handle = None
         self._connected_to_pipe = False
+        self._amd_power = AmdGpuPower()
 
         self._stats = {
             "cpu_temp": 45.0,
@@ -290,7 +293,14 @@ class SensorBridge:
 
             # GPU
             self._stats["gpu_temp"] = get_val("gpu temperature", self._stats["gpu_temp"])
-            self._stats["gpu_power"] = get_val("gpu power", self._stats["gpu_power"])
+            # DeepCool's bridge reports unit "-" when it has no GPU power sensor (e.g. AMD cards)
+            gpu_power_item = lookup.get("gpu power")
+            if isinstance(gpu_power_item, dict) and gpu_power_item.get("Unit") not in ("-", "", None):
+                self._stats["gpu_power"] = get_val("gpu power", self._stats["gpu_power"])
+            else:
+                amd_watts = self._amd_power.read()
+                if amd_watts is not None:
+                    self._stats["gpu_power"] = amd_watts
             self._stats["gpu_clock"] = get_val("gpu clock", get_val("core gpu clock", self._stats["gpu_clock"]))
             self._stats["gpu_load"] = get_val("gpu usage", self._stats["gpu_load"])
 
