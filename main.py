@@ -38,6 +38,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger("deepcool_lm")
 
+
+def _handle_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    logger.critical("Uncaught exception in main process:", exc_info=(exc_type, exc_value, exc_traceback))
+
+
+def _handle_thread_exception(args):
+    if issubclass(args.exc_type, KeyboardInterrupt):
+        return
+    thread_name = getattr(args.thread, "name", "unknown")
+    logger.critical(f"Uncaught exception in background thread '{thread_name}':", exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
+
+
+sys.excepthook = _handle_exception
+threading.excepthook = _handle_thread_exception
+
 # 3. Enforce single-instance execution via Windows named Mutex
 _single_instance_mutex = None
 if sys.platform == "win32":
@@ -122,14 +140,17 @@ def main():
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received.")
         except Exception as e:
-            logger.warning(f"System tray encountered an issue: {e}. Running in background daemon mode.")
+            logger.warning(f"System tray encountered an issue: {e}")
+
+        # If tray event loop ended (e.g. Explorer restart, taskbar reload) but user did not exit, keep running!
+        if service._running:
+            logger.info("System tray loop concluded; continuing in background daemon mode...")
             try:
                 while service._running:
                     time.sleep(1.0)
             except KeyboardInterrupt:
                 logger.info("Keyboard interrupt received.")
-        finally:
-            service.stop()
+        service.stop()
     else:
         logger.info("Running in headless daemon mode. Press Ctrl+C to exit.")
         try:
