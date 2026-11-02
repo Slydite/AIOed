@@ -49,8 +49,7 @@ class BrightnessRequest(BaseModel):
 
 
 class BrightnessSetRequest(BaseModel):
-    level: int = None
-    percent: int = None
+    percent: int
 
 
 class MediaSelectRequest(BaseModel):
@@ -191,14 +190,10 @@ def create_app(service: DisplayService, web_dir: str = "web") -> FastAPI:
 
     @app.post("/api/brightness/set")
     def set_brightness(req: BrightnessSetRequest):
-        if req.percent is not None:
-            pct = req.percent
-        elif req.level is not None:
-            pct = req.level * 20 if req.level <= 5 else req.level
-        else:
-            raise HTTPException(status_code=400, detail="Must provide 'percent' (0..100) or 'level'")
+        if not 0 <= req.percent <= 100:
+            raise HTTPException(status_code=400, detail="'percent' must be 0..100")
 
-        service.set_brightness(pct)
+        service.set_brightness(req.percent)
         return {
             "status": "ok",
             "brightness": service.usb.brightness_pct,

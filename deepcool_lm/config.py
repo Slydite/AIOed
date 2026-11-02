@@ -3,6 +3,7 @@ Configuration manager for DeepCool LM360 service.
 Persists settings to config.json.
 """
 
+import copy
 import json
 import logging
 import os
@@ -20,7 +21,7 @@ DEFAULT_CONFIG = {
     "orientation": 180,          # 180 (cooler mounted upside down) or 0
     "active_theme": "cyber_stats",
     "temp_unit": "C",            # "C" or "F"
-    "brightness": 100,           # 0% to 100% linear brightness
+    "brightness": 100,           # hardware backlight PWM, 0..100%
     "active_media_id": None,
     "playback_fps_cap": 30,
     "web_port": 5220,
@@ -75,7 +76,7 @@ class ConfigManager:
     def __init__(self, filepath: str = CONFIG_FILE):
         self.filepath = os.path.abspath(filepath)
         self._lock = threading.Lock()
-        self.data = dict(DEFAULT_CONFIG)
+        self.data = copy.deepcopy(DEFAULT_CONFIG)
         self.load()
 
     def load(self):
@@ -89,11 +90,6 @@ class ConfigManager:
                             self.data[k].update(v)
                         else:
                             self.data[k] = v
-
-                    # Migrate legacy 1..5 brightness to 20..100%
-                    b_val = self.data.get("brightness", 100)
-                    if isinstance(b_val, (int, float)) and 1 <= b_val <= 5:
-                        self.data["brightness"] = int(b_val * 20)
                 except Exception as e:
                     logger.warning(f"Error loading config from {self.filepath}: {e}")
             else:

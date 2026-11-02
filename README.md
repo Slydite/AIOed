@@ -31,7 +31,7 @@ Designed from the ground up to replace heavy proprietary software with a fast, m
   - Smart 4:3 center crop, scale, and trim modal with instant pre-rendering to raw RGB565 binary loops.
   - Zero-CPU playback directly from disk DMA to USB.
   - Custom media storage folder selection with automatic file migration.
-- **☀️ Display Brightness Control**: Smooth linear software dimming from 10% to 100% (safe bulk packet scaling with zero panel register corruption).
+- **☀️ Display Brightness Control**: True hardware backlight (PWM) dimming via the cooler's own settings command (`0x06`), so there is no per-frame processing cost. Display Standby uses the firmware's Zen command (`0x03`).
 - **📡 Native Sensor Bridge**: Connects directly to DeepCool's low-overhead named pipe (`\\.\pipe\jzfs_sensor_bridge_v2`) for kernel-level CPU/GPU temperatures, powers, clock frequencies, and memory usage. Falls back seamlessly to `psutil`.
 - **🌐 Responsive Web Dashboard**: Dark-mode web interface at `http://localhost:5220` with a zero-lag 25 FPS live MJPEG stream mirror of the cooler screen.
 - **🖥️ System Tray Integration**: Minimizes quietly to the Windows system tray with quick mode switching, orientation toggle, brightness presets, and dashboard launcher.

@@ -92,6 +92,7 @@ def run_server(app, host: str, port: int):
 def main():
     parser = argparse.ArgumentParser(description="DeepCool LM360 White LCD Display Controller")
     parser.add_argument("--port", type=int, default=5220, help="Web dashboard port (default: 5220)")
+    parser.add_argument("--host", default="127.0.0.1", help="Web dashboard bind address (default: 127.0.0.1, local only)")
     parser.add_argument("--no-tray", action="store_true", help="Run without system tray icon")
     parser.add_argument("--open-browser", action="store_true", help="Open web dashboard in browser on start")
     parser.add_argument("--orientation", type=int, choices=[0, 180], help="Display orientation (default: 180)")
@@ -122,7 +123,7 @@ def main():
     # Start web server in background thread
     server_thread = threading.Thread(
         target=run_server,
-        args=(app, "0.0.0.0", port),
+        args=(app, args.host, port),
         daemon=True,
         name="UvicornServerThread"
     )

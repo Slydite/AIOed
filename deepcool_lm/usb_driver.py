@@ -9,7 +9,6 @@ from ctypes import wintypes
 import logging
 import threading
 import time
-import numpy as np
 
 logger = logging.getLogger("deepcool_lm.usb")
 
@@ -57,28 +56,16 @@ def build_l122_packet(payload: bytes) -> bytes:
 
 INIT_CMD = build_l122_packet(bytes([0x09]))                            # aa 01 00 09 29 91
 REBOOT_CMD = build_l122_packet(bytes([0xEE]))                          # aa 01 00 ee e0 1c
+ZEN_CMD = build_l122_packet(bytes([0x03, 0x00, 0x00, 0x00]))           # aa 04 00 03 00 00 00 dc 9b
+SETTINGS_OPCODE = 0x06
+HW_ORIENTATION_CODE = 0x03  # stock value; rotation is rendered in software
 FRAME_HEADER = bytes([0xAA, 0x08, 0x00, 0x00, 0x01, 0x00, 0x58, 0x02, 0x00, 0x2C, 0x01, 0xBC, 0x11])
-
-
-def _build_rgb565_lut(percent: int) -> np.ndarray:
-    """Precompute a 65536-element uint16 LUT for fast linear RGB565 brightness scaling (<0.1ms)."""
-    alpha = max(0.0, min(1.0, percent / 100.0))
-    vals = np.arange(65536, dtype=np.uint16)
-    r = (vals >> 11) & 0x1F
-    g = (vals >> 5) & 0x3F
-    b = vals & 0x1F
-
-    r_scaled = np.clip(np.round(r * alpha), 0, 31).astype(np.uint16)
-    g_scaled = np.clip(np.round(g * alpha), 0, 63).astype(np.uint16)
-    b_scaled = np.clip(np.round(b * alpha), 0, 31).astype(np.uint16)
-
-    return (r_scaled << 11) | (g_scaled << 5) | b_scaled
 
 
 class LM360UsbDriver:
     """Low-level driver communicating directly with LM360 via WinUSB."""
 
-    def __init__(self, device_path: str = DEFAULT_DEVICE_PATH, initial_brightness: int = 100, orientation: int = 180):
+    def __init__(self, device_path: str = DEFAULT_DEVICE_PATH, initial_brightness: int = 100):
         self.device_path = device_path
         self.file_handle = None
         self.winusb_handle = None
@@ -86,18 +73,7 @@ class LM360UsbDriver:
         self._last_reconnect_attempt = 0.0
         self._io_lock = threading.Lock()
 
-        # Handle legacy 1..5 scale if passed
-        b_val = int(initial_brightness)
-        if 1 <= b_val <= 5:
-            b_val = b_val * 20
-        self.brightness_pct = max(0, min(100, b_val))
-        self.orientation_deg = int(orientation)
-        self._lut = _build_rgb565_lut(self.brightness_pct) if self.brightness_pct < 100 else None
-
-    @property
-    def current_brightness(self) -> int:
-        """Compatibility property returning percentage."""
-        return self.brightness_pct
+        self.brightness_pct = max(0, min(100, int(initial_brightness)))
 
     def connect(self) -> bool:
         """Open device handle and initialize WinUSB."""
@@ -137,6 +113,7 @@ class LM360UsbDriver:
                 # Send initialization handshake (opcode 0x09)
                 self._write_pipe_raw(INIT_CMD)
                 time.sleep(0.04)
+                self._write_pipe_raw(self._brightness_packet(self.brightness_pct))
             logger.info("Successfully connected DeepCool LM360 WinUSB interface.")
             return True
         except Exception as e:
@@ -165,6 +142,11 @@ class LM360UsbDriver:
             raise IOError(f"WinUsb_WritePipe failed (win32 err {err})")
         return written.value
 
+    @staticmethod
+    def _brightness_packet(percent: int) -> bytes:
+        """Hardware settings packet (opcode 0x06): [0x06, orientation, backlight 0..100, 0x00]."""
+        return build_l122_packet(bytes([SETTINGS_OPCODE, HW_ORIENTATION_CODE, max(0, min(100, percent)), 0x00]))
+
     def reboot(self) -> bool:
         """Send hardware reboot command (opcode 0xEE) to reset MCU and display registers."""
         if not self.ensure_connected():
@@ -186,7 +168,6 @@ class LM360UsbDriver:
         Send a 320x240 RGB565 framebuffer to the LCD.
         Hardware protocol requires FRAME_HEADER (13 bytes) as a separate USB transfer,
         followed by the raw pixel payload (153,600 bytes).
-        Applies fast linear RGB565 LUT scaling if brightness < 100%.
         """
         if len(frame_data) == 153613:
             pixel_bytes = frame_data[13:]
@@ -194,14 +175,6 @@ class LM360UsbDriver:
             pixel_bytes = frame_data
         else:
             raise ValueError(f"Invalid frame size: {len(frame_data)} (expected {FRAME_SIZE})")
-
-        # Blank frame if brightness is 0
-        if self.brightness_pct <= 0:
-            pixel_bytes = bytes(FRAME_SIZE)
-        elif self._lut is not None:
-            # Fast vectorized LUT lookup (<0.1ms for full 320x240 frame)
-            pixel_u16 = np.frombuffer(pixel_bytes, dtype=np.uint16)
-            pixel_bytes = self._lut[pixel_u16].tobytes()
 
         if not self.is_connected:
             now = time.time()
@@ -223,41 +196,36 @@ class LM360UsbDriver:
                 return False
 
     def set_brightness(self, percent: int) -> bool:
-        """Set display brightness percentage 0..100 with immediate vectorized software LUT scaling."""
-        val = int(percent)
-        # Migrate legacy 1..5 values
-        if 1 <= val <= 5:
-            val = val * 20
-        target = max(0, min(100, val))
-
+        """Set hardware backlight PWM brightness 0..100 (opcode 0x06)."""
+        target = max(0, min(100, int(percent)))
         self.brightness_pct = target
-        self._lut = _build_rgb565_lut(target) if target < 100 else None
 
-        logger.info(f"Display brightness set to {target}% (LUT active={self._lut is not None})")
+        if not self.is_connected:
+            return True  # applied on next connect
+        with self._io_lock:
+            try:
+                self._write_pipe_raw(self._brightness_packet(target))
+            except Exception as e:
+                logger.warning(f"Failed to set hardware brightness: {e}")
+                self.close()
+                return False
+        logger.info(f"Display backlight brightness set to {target}%")
         return True
 
-    def brightness_up(self, step: int = 10) -> int:
-        """Increase brightness by step%."""
-        self.set_brightness(min(100, self.brightness_pct + step))
-        return self.brightness_pct
-
-    def brightness_down(self, step: int = 10) -> int:
-        """Decrease brightness by step%."""
-        self.set_brightness(max(10, self.brightness_pct - step))
-        return self.brightness_pct
-
-    def screen_off(self) -> bool:
-        """Turn display backlight/screen off by sending blank black frame."""
+    def enter_standby(self) -> bool:
+        """
+        Put the display into firmware standby (Zen mode, opcode 0x03).
+        The cooler shows its Zen screen, then the logo, then turns the panel off.
+        It is not a latched toggle: the next frame sent wakes the display again.
+        """
         if not self.ensure_connected():
             return False
         with self._io_lock:
             try:
-                black_frame = bytes(FRAME_SIZE)
-                self._write_pipe_raw(FRAME_HEADER)
-                self._write_pipe_raw(black_frame)
+                self._write_pipe_raw(ZEN_CMD)
                 return True
             except Exception as e:
-                logger.warning(f"Failed to turn screen off: {e}")
+                logger.warning(f"Failed to enter standby: {e}")
                 self.close()
                 return False
 

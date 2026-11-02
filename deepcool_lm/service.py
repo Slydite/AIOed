@@ -9,6 +9,7 @@ import logging
 import threading
 import time
 import ctypes
+import numpy as np
 from PIL import Image
 
 try:
@@ -34,8 +35,7 @@ class DisplayService:
         self.media_mgr = media_mgr
         self.text_animator = TextAnimator(self.config)
         saved_brightness = self.config.get("brightness", 100)
-        saved_orientation = self.config.get("orientation", 180)
-        self.usb = LM360UsbDriver(initial_brightness=saved_brightness, orientation=saved_orientation)
+        self.usb = LM360UsbDriver(initial_brightness=saved_brightness)
         self.sensors = SensorBridge()
 
         self._running = False
@@ -101,6 +101,7 @@ class DisplayService:
         current_streamer_id = None
         current_streamer_orient = None
         media_start_time = time.perf_counter()
+        standby_sent = False
 
         while self._running:
             mode = self.config.get("mode", "monitor")
@@ -115,8 +116,13 @@ class DisplayService:
                 self._last_fps_calc = t_now
 
             try:
+                if mode != "off" or not self.usb.is_connected:
+                    standby_sent = False
+
                 if mode == "off":
-                    self.usb.screen_off()
+                    # Firmware standby: send Zen once; any later frame wakes the display.
+                    if not standby_sent:
+                        standby_sent = self.usb.enter_standby()
                     with self._lock:
                         self._latest_preview_img = Image.new("RGB", (320, 240), color=(0, 0, 0))
                         self._preview_jpeg_cache = None
@@ -234,7 +240,6 @@ class DisplayService:
             else:
                 pixel_bytes = packet_bytes
 
-            import numpy as np
             words = np.frombuffer(pixel_bytes, dtype=np.uint16).reshape((240, 320))
             r = ((words >> 11) & 0x1F) << 3
             g = ((words >> 5) & 0x3F) << 2
@@ -279,7 +284,6 @@ class DisplayService:
     def set_orientation(self, deg: int):
         if deg in (0, 180):
             self.config.set("orientation", deg)
-            self.usb.orientation_deg = deg
             self.wake()
 
     def set_text_config(self, cfg: dict):
@@ -313,10 +317,7 @@ class DisplayService:
             self.wake()
 
     def set_brightness(self, percent: int):
-        val = int(percent)
-        if 1 <= val <= 5:
-            val = val * 20
-        target = max(0, min(100, val))
+        target = max(0, min(100, int(percent)))
         self.usb.set_brightness(target)
         self.config.set("brightness", target)
         self.wake()
