@@ -296,6 +296,8 @@ class TextAnimator:
             res = res.replace("{cpu_power}", f"{int(cpu_p)}W")
             res = res.replace("{gpu_power}", f"{int(gpu_p)}W")
             res = res.replace("{ram_load}", f"{int(ram_l)}%")
+            res = res.replace("{fps_1pct}", f"{int(stats.get('fps_1pct', 0))}")
+            res = res.replace("{fps}", f"{int(stats.get('fps_avg', 0))}")
             res = res.replace("{cpu_clock}", f"{round(clock/1000.0, 2)}GHz" if clock > 0 else "")
         return res
 

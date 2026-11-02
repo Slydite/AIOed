@@ -80,6 +80,7 @@ function renderSensors(s, unit) {
     { label: 'GPU Power', val: `${(s.gpu_power || 0).toFixed(1)} W` },
     { label: 'GPU Load', val: `${(s.gpu_load || 0).toFixed(0)} %` },
     { label: 'RAM Load', val: `${(s.ram_load || 0).toFixed(0)} %` },
+    { label: s.fps_app ? `FPS (${s.fps_app})` : 'FPS', val: s.fps_avg ? `${s.fps_avg.toFixed(0)} avg / ${s.fps_1pct.toFixed(0)} 1%` : '—' },
   ];
 
   grid.innerHTML = items.map(i => `

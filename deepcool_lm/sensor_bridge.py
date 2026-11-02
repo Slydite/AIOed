@@ -14,6 +14,7 @@ import time
 import zlib
 import psutil
 
+from deepcool_lm.fps_monitor import FpsMonitor
 from deepcool_lm.gpu_power import AmdGpuPower
 
 logger = logging.getLogger("deepcool_lm.sensor")
@@ -35,6 +36,7 @@ class SensorBridge:
         self._pipe_handle = None
         self._connected_to_pipe = False
         self._amd_power = AmdGpuPower()
+        self._fps = FpsMonitor()
 
         self._stats = {
             "cpu_temp": 45.0,
@@ -60,11 +62,13 @@ class SensorBridge:
         self._running = True
         self._thread = threading.Thread(target=self._worker_loop, daemon=True, name="SensorBridgeWorker")
         self._thread.start()
+        self._fps.start()
         logger.info("Sensor bridge service thread started.")
 
     def stop(self):
         """Stop monitoring thread and disconnect pipe."""
         self._running = False
+        self._fps.stop()
         self._close_pipe()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=1.0)
@@ -73,7 +77,9 @@ class SensorBridge:
     def get_stats(self) -> dict:
         """Return a thread-safe copy of the latest sensor data."""
         with self._lock:
-            return dict(self._stats)
+            stats = dict(self._stats)
+        stats.update(self._fps.get())
+        return stats
 
     def get_metric(self, metric_id: str, temp_unit: str = "C") -> tuple[str, str, float]:
         """
@@ -139,6 +145,14 @@ class SensorBridge:
         elif metric_id in ("disk_temp", "disk_temperature"):
             val_c = s.get("disk_temp") or 0.0
             return f"{int(round(val_c))}", "°C", max(0.0, min(100.0, val_c))
+
+        elif metric_id in ("fps", "fps_avg"):
+            val = s.get("fps_avg") or 0.0
+            return f"{val:.0f}", "FPS", max(0.0, min(100.0, val / 240.0 * 100.0))
+
+        elif metric_id in ("fps_1pct", "fps_low"):
+            val = s.get("fps_1pct") or 0.0
+            return f"{val:.0f}", "FPS", max(0.0, min(100.0, val / 240.0 * 100.0))
 
         # Default fallback
         return "N/A", "", 0.0

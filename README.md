@@ -33,6 +33,7 @@ Designed from the ground up to replace heavy proprietary software with a fast, m
   - Custom media storage folder selection with automatic file migration.
 - **☀️ Display Brightness Control**: True hardware backlight (PWM) dimming via the cooler's own settings command (`0x06`), so there is no per-frame processing cost. Display Standby uses the firmware's Zen command (`0x03`).
 - **📡 Native Sensor Bridge**: Connects directly to DeepCool's low-overhead named pipe (`\\.\pipe\jzfs_sensor_bridge_v2`) for kernel-level CPU/GPU temperatures, powers, clock frequencies, and memory usage. Falls back seamlessly to `psutil`.
+- **🎮 Live FPS (avg + 1% low)**: Reads present events through the PresentMon build that ships with the AMD driver (also detects Intel/NVIDIA FrameView builds), no download needed. Shows the foreground app's FPS in the third card of the Cyber theme (`RAM | FPS | 1% LOW`), as `fps_avg`/`fps_1pct` slot metrics, and as `{fps}`/`{fps_1pct}` text tags.
 - **🌐 Responsive Web Dashboard**: Dark-mode web interface at `http://localhost:5220` with a zero-lag 25 FPS live MJPEG stream mirror of the cooler screen.
 - **🖥️ System Tray Integration**: Minimizes quietly to the Windows system tray with quick mode switching, orientation toggle, brightness presets, and dashboard launcher.
 

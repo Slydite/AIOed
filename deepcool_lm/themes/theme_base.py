@@ -65,6 +65,8 @@ METRIC_DEFINITIONS = {
     "gpu_clock": {"name": "GPU Frequency", "short": "GPU FREQ", "default_unit": "MHz", "max_val": 3000.0},
     "ram_load": {"name": "RAM Usage", "short": "RAM LOAD", "default_unit": "%", "max_val": 100.0},
     "ram_used": {"name": "RAM Used", "short": "RAM USED", "default_unit": "GB", "max_val": 64.0},
+    "fps_avg": {"name": "Game FPS (avg)", "short": "FPS AVG", "default_unit": "FPS", "max_val": 240.0},
+    "fps_1pct": {"name": "Game FPS (1% low)", "short": "FPS 1%", "default_unit": "FPS", "max_val": 240.0},
     "disk_temp": {"name": "Disk Temperature", "short": "DISK TEMP", "default_unit": "°C", "max_val": 80.0},
 }
 
@@ -163,6 +165,11 @@ class BaseTheme(ABC):
             tot = stats.get("ram_total_gb", 32.0)
             pct = (used / tot * 100.0) if tot > 0 else 0.0
             return f"{used:.1f}", f"/{tot:.0f}G", max(0.0, min(100.0, pct)), title
+
+        elif metric_key in ("fps_avg", "fps_1pct"):
+            val = stats.get(metric_key, 0.0)
+            pct = max(0.0, min(100.0, (val / meta["max_val"]) * 100.0))
+            return f"{val:.0f}", "FPS", pct, title
 
         elif metric_key == "disk_temp":
             val_c = stats.get("disk_temp", 0.0)

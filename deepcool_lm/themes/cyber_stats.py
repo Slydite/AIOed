@@ -1,6 +1,6 @@
 """
 Theme: Cyber Large Stats
-High-contrast, large-font HUD displaying CPU, GPU, and RAM stats with dynamic value-based color-shifting
+High-contrast, large-font HUD displaying CPU, GPU, and RAM and game FPS stats with dynamic value-based color-shifting
 and luminous breathing neon accents.
 """
 
@@ -36,6 +36,17 @@ def get_load_color(load_pct: float) -> tuple[int, int, int]:
         return (255, 30, 60)       # Critical red (Heavy / Full load)
 
 
+def get_fps_color(fps: float) -> tuple[int, int, int]:
+    """Dynamic FPS coloring: Red (choppy) -> Amber -> Green -> Cyan (high refresh)."""
+    if fps < 30:
+        return (255, 30, 60)
+    elif fps < 60:
+        return (255, 185, 15)
+    elif fps < 100:
+        return (40, 255, 130)
+    return (0, 240, 255)
+
+
 def get_power_color(watts: float, max_w: float = 150.0) -> tuple[int, int, int]:
     """Dynamic power coloring scaled by max TDP."""
     pct = (watts / max_w) * 100.0 if max_w > 0 else 0.0
@@ -52,7 +63,7 @@ def get_power_color(watts: float, max_w: float = 150.0) -> tuple[int, int, int]:
 class CyberStatsTheme(BaseTheme):
     id = "cyber_stats"
     name = "Cyber Large Stats"
-    description = "Large high-contrast display with CPU, GPU & RAM stats and dynamic color thresholds."
+    description = "Large high-contrast display with CPU, GPU, RAM & FPS stats and dynamic color thresholds."
 
     @classmethod
     def get_supported_slots(cls) -> list[dict]:
@@ -73,7 +84,6 @@ class CyberStatsTheme(BaseTheme):
         f_label = get_font("Orbitron-Bold.ttf", 11)
         f_num = get_font("Orbitron-Bold.ttf", 23)
         f_sub = get_font("ShareTechMono-Regular.ttf", 12)
-        f_ram_num = get_font("Orbitron-Bold.ttf", 26)
 
         # Pulse for breathing accent pillar
         pulse = 0.72 + 0.28 * math.sin(t_now * 3.0)
@@ -92,11 +102,13 @@ class CyberStatsTheme(BaseTheme):
         gpu_clock = stats.get("gpu_clock", 0.0)
         gpu_sub = f"{int(gpu_clock)} MHz" if gpu_clock > 0 else ""
 
-        # 3. RAM Telemetry
+        # 3. RAM + Game FPS (FPS is zero when no game is presenting)
         ram_load = max(0.0, float(stats.get("ram_load", 0.0)))
         ram_used = stats.get("ram_used_gb", 0.0)
         ram_tot = stats.get("ram_total_gb", 32.0)
         ram_sub = f"{ram_used:.1f} / {ram_tot:.0f} GB" if ram_tot > 0 else ""
+        fps_avg = max(0.0, float(stats.get("fps_avg", 0.0)))
+        fps_low = max(0.0, float(stats.get("fps_1pct", 0.0)))
 
         cards = [
             {
@@ -120,7 +132,7 @@ class CyberStatsTheme(BaseTheme):
                 "sub": gpu_sub
             },
             {
-                "title": "RAM LOAD",
+                "title": "RAM  |  FPS  |  1% LOW",
                 "y": 162,
                 "h": 72,
                 "load": ram_load,
@@ -199,23 +211,22 @@ class CyberStatsTheme(BaseTheme):
                 draw.text((cur_x, y + 29), temp_txt, fill=temp_c, font=f_num)
 
             else:
-                # RAM Load: Massive font
-                ram_val = int(round(c["load"]))
+                # RAM load, FPS average and FPS 1% low in large text
                 ram_c = get_load_color(c["load"])
-                ram_txt = f"{ram_val} %"
+                fps_c = get_fps_color(fps_avg)
+                low_c = get_fps_color(fps_low)
+                ram_txt = f"{int(round(c['load']))}%"
+                avg_txt = f"{int(round(fps_avg))}" if fps_avg > 0 else "--"
+                low_txt = f"{int(round(fps_low))}" if fps_avg > 0 else "--"
+                sep = " | "
+                sep_c = (50, 62, 82)
 
-                draw.text((23, y + 28), ram_txt, fill=(ram_c[0]//5, ram_c[1]//5, ram_c[2]//5), font=f_ram_num)
-                draw.text((22, y + 27), ram_txt, fill=ram_c, font=f_ram_num)
-
-                # Glowing progress bar
-                bar_x = 135
-                bar_y = y + 38
-                bar_w = 165
-                bar_h = 10
-                draw.rounded_rectangle([bar_x, bar_y, bar_x + bar_w, bar_y + bar_h], radius=4, fill=(20, 26, 38))
-                fill_w = int(bar_w * (c["load"] / 100.0))
-                if fill_w > 4:
-                    draw.rounded_rectangle([bar_x, bar_y, bar_x + fill_w, bar_y + bar_h], radius=4, fill=ram_c)
+                cur_x = 22
+                for txt, col in ((ram_txt, ram_c), (sep, sep_c), (avg_txt, fps_c), (sep, sep_c), (low_txt, low_c)):
+                    draw.text((cur_x + 1, y + 30), txt, fill=(col[0]//5, col[1]//5, col[2]//5), font=f_num)
+                    draw.text((cur_x, y + 29), txt, fill=col, font=f_num)
+                    b = draw.textbbox((0, 0), txt, font=f_num)
+                    cur_x += (b[2] - b[0]) + 5
 
         preview_img = img.copy()
         if orientation == 180:
