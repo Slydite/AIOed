@@ -60,10 +60,13 @@ class AmdGpuPower:
             return False
 
     def read(self):
-        """Highest board power across ADL adapters (the discrete GPU), in watts."""
+        """
+        Board power in watts from the first ADL adapter that reports it.
+        Later adapters are per-display aliases of the same GPU and glitch to ~500 W,
+        so taking the maximum across adapters gives bogus spikes.
+        """
         if not self._init():
             return None
-        best = None
         out = _PMLogOutput()
         for idx in range(self._adapters):
             out.size = ctypes.sizeof(_PMLogOutput)
@@ -73,6 +76,6 @@ class AmdGpuPower:
             except Exception:
                 continue
             sensor = out.sensors[PMLOG_ASIC_POWER]
-            if sensor.supported and (best is None or sensor.value > best):
-                best = sensor.value
-        return float(best) if best is not None else None
+            if sensor.supported:
+                return float(sensor.value)
+        return None
