@@ -29,6 +29,28 @@ kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
 winusb = ctypes.WinDLL('winusb', use_last_error=True)
 
 
+def build_general_command(payload: bytes) -> bytes:
+    """
+    Build a 46-byte DeepCool general command packet with 16-bit little-endian checksum.
+    
+    Packet structure:
+      Byte 0:       0xAA (Sync byte)
+      Byte 1:       0x2E (Total packet length: 46 bytes = 0x2E)
+      Bytes 2..:    payload bytes (e.g. 0x04 settings, 0x05 commit)
+      ...43:        0x00 padding up to 42 payload bytes total
+      Bytes 44..45: 16-bit sum (checksum) of bytes 0..43 in Little-Endian
+    """
+    packet = bytearray([0xAA, 0x2E])
+    packet.extend(payload)
+    padding_len = 42 - len(payload)
+    if padding_len > 0:
+        packet.extend(b'\x00' * padding_len)
+    chk = sum(packet) & 0xFFFF
+    packet.append(chk & 0xFF)
+    packet.append((chk >> 8) & 0xFF)
+    return bytes(packet)
+
+
 def _build_rgb565_lut(percent: int) -> np.ndarray:
     """Precompute a 65536-element uint16 LUT for fast linear RGB565 brightness scaling (<0.2ms)."""
     alpha = max(0.0, min(1.0, percent / 100.0))
@@ -47,7 +69,7 @@ def _build_rgb565_lut(percent: int) -> np.ndarray:
 class LM360UsbDriver:
     """Low-level driver communicating directly with LM360 via WinUSB."""
 
-    def __init__(self, device_path: str = DEFAULT_DEVICE_PATH, initial_brightness: int = 100):
+    def __init__(self, device_path: str = DEFAULT_DEVICE_PATH, initial_brightness: int = 100, orientation: int = 180):
         self.device_path = device_path
         self.file_handle = None
         self.winusb_handle = None
@@ -56,10 +78,11 @@ class LM360UsbDriver:
 
         # Handle legacy 1..5 scale if passed
         b_val = int(initial_brightness)
-        if b_val <= 5:
+        if 1 <= b_val <= 5:
             b_val = b_val * 20
         self.brightness_pct = max(0, min(100, b_val))
-        self._lut = _build_rgb565_lut(self.brightness_pct) if self.brightness_pct < 100 else None
+        self.orientation_deg = int(orientation)
+        self._lut = None
 
     @property
     def current_brightness(self) -> int:
@@ -103,11 +126,37 @@ class LM360UsbDriver:
             # Send initialization handshake (opcode 0x09)
             self._write_pipe(INIT_CMD)
             time.sleep(0.05)
-            logger.info("Successfully connected and initialized DeepCool LM360 WinUSB interface.")
+            # Push hardware LCD backlight PWM brightness & orientation
+            self.set_hardware_settings(self.brightness_pct, self.orientation_deg)
+            time.sleep(0.02)
+            logger.info(f"Successfully connected DeepCool LM360 WinUSB interface (HW backlight={self.brightness_pct}%).")
             return True
         except Exception as e:
             logger.warning(f"Error during LM360 initialization write: {e}")
             self.close()
+            return False
+
+    def set_hardware_settings(self, brightness: int, angle: int = None) -> bool:
+        """
+        Send hardware configuration commands (0x04 Settings, followed by 0x05 Commit)
+        to set LCD backlight PWM and orientation at the physical microcontroller level.
+        """
+        if not self.is_connected or not self.winusb_handle:
+            return False
+        try:
+            b_val = max(0, min(100, int(brightness)))
+            a_val = self.orientation_deg if angle is None else int(angle)
+            # Packet 0x04: [0x04, angle, brightness, 0x01]
+            p4 = build_general_command(bytes([0x04, a_val & 0xFF, b_val & 0xFF, 0x01]))
+            self._write_pipe(p4)
+            time.sleep(0.01)
+            # Packet 0x05: [0x05, 0x01]
+            p5 = build_general_command(bytes([0x05, 0x01]))
+            self._write_pipe(p5)
+            logger.debug(f"Hardware LCD settings sent: backlight={b_val}%, orientation={a_val}°")
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to set hardware brightness/orientation: {e}")
             return False
 
     def reboot(self) -> bool:
@@ -159,11 +208,11 @@ class LM360UsbDriver:
         else:
             raise ValueError(f"Invalid frame size: {len(frame_data)} (expected {FRAME_SIZE})")
 
-        # Apply software linear brightness scaling
+        # Blank frame if brightness is 0
         if self.brightness_pct <= 0:
             pixel_bytes = bytes(FRAME_SIZE)
-        elif self.brightness_pct < 100 and self._lut is not None:
-            # Vectorized LUT lookup: takes ~0.16 ms
+        elif self._lut is not None:
+            # Optional software LUT lookup fallback
             pixel_u16 = np.frombuffer(pixel_bytes, dtype=np.uint16)
             pixel_bytes = self._lut[pixel_u16].tobytes()
 
@@ -186,7 +235,7 @@ class LM360UsbDriver:
             return False
 
     def set_brightness(self, percent: int) -> bool:
-        """Set brightness to percentage 0..100 (supports continuous linear adjustment)."""
+        """Set hardware LCD backlight PWM brightness to percentage 0..100."""
         val = int(percent)
         # Migrate legacy 1..5 values
         if 1 <= val <= 5:
@@ -194,12 +243,10 @@ class LM360UsbDriver:
         target = max(0, min(100, val))
 
         self.brightness_pct = target
-        if target < 100:
-            self._lut = _build_rgb565_lut(target)
-        else:
-            self._lut = None
+        if self.is_connected:
+            self.set_hardware_settings(target, self.orientation_deg)
 
-        logger.debug(f"Display brightness set to {target}%")
+        logger.info(f"Display hardware brightness set to {target}%")
         return True
 
     def brightness_up(self, step: int = 10) -> int:
@@ -213,10 +260,11 @@ class LM360UsbDriver:
         return self.brightness_pct
 
     def screen_off(self) -> bool:
-        """Turn display backlight/screen off."""
+        """Turn display backlight/screen off (hardware backlight 0% + blank frame)."""
         if not self.ensure_connected():
             return False
         try:
+            self.set_hardware_settings(0, self.orientation_deg)
             black_frame = bytes(FRAME_SIZE)
             self._write_pipe(FRAME_HEADER)
             self._write_pipe(black_frame)

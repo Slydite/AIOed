@@ -33,8 +33,9 @@ class DisplayService:
         self.config = config
         self.media_mgr = media_mgr
         self.text_animator = TextAnimator(self.config)
-        saved_brightness = self.config.get("brightness", 5)
-        self.usb = LM360UsbDriver(initial_brightness=saved_brightness)
+        saved_brightness = self.config.get("brightness", 100)
+        saved_orientation = self.config.get("orientation", 180)
+        self.usb = LM360UsbDriver(initial_brightness=saved_brightness, orientation=saved_orientation)
         self.sensors = SensorBridge()
 
         self._running = False
@@ -278,6 +279,9 @@ class DisplayService:
     def set_orientation(self, deg: int):
         if deg in (0, 180):
             self.config.set("orientation", deg)
+            self.usb.orientation_deg = deg
+            if self.usb.is_connected:
+                self.usb.set_hardware_settings(self.usb.brightness_pct, deg)
             self.wake()
 
     def set_text_config(self, cfg: dict):
