@@ -1,3 +1,6 @@
+Option Explicit
+
+Dim fso, scriptDir, WshShell
 Set fso = CreateObject("Scripting.FileSystemObject")
 scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
 Set WshShell = CreateObject("WScript.Shell")

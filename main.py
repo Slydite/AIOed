@@ -12,18 +12,51 @@ import time
 import webbrowser
 import uvicorn
 
+# 1. Lock working directory to the project directory regardless of caller
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+os.chdir(PROJECT_DIR)
+
+# 2. Redirect sys.stdout and sys.stderr under pythonw.exe so unhandled prints/streams never crash
+LOG_FILE = os.path.join(PROJECT_DIR, "aioed.log")
+has_console = sys.stdout is not None and hasattr(sys.stdout, "write")
+
+_log_file_handle = open(LOG_FILE, "a", encoding="utf-8", buffering=1)
+if sys.stdout is None:
+    sys.stdout = _log_file_handle
+if sys.stderr is None:
+    sys.stderr = _log_file_handle
+
+log_handlers = [logging.FileHandler(LOG_FILE, encoding="utf-8")]
+if has_console:
+    log_handlers.append(logging.StreamHandler())
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+    handlers=log_handlers
+)
+logger = logging.getLogger("deepcool_lm")
+
+# 3. Enforce single-instance execution via Windows named Mutex
+_single_instance_mutex = None
+if sys.platform == "win32":
+    try:
+        import ctypes
+        _single_instance_mutex = ctypes.windll.kernel32.CreateMutexW(
+            None, False, "Local\\AIOed_LM360_SingleInstanceMutex"
+        )
+        if ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS
+            logger.info("AIOed LM360 service is already running. Exiting duplicate instance.")
+            sys.exit(0)
+    except Exception as e:
+        logger.warning(f"Could not initialize single instance mutex: {e}")
+
 from deepcool_lm.config import ConfigManager
 from deepcool_lm.media_manager import MediaManager
 from deepcool_lm.service import DisplayService
 from deepcool_lm.server import create_app
 from deepcool_lm.tray import TrayIconManager
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%H:%M:%S"
-)
-logger = logging.getLogger("deepcool_lm")
 
 
 def run_server(app, host: str, port: int):
@@ -83,11 +116,18 @@ def main():
 
     # Run system tray or wait
     if not args.no_tray:
-        tray = TrayIconManager(service, port=port)
         try:
+            tray = TrayIconManager(service, port=port)
             tray.run()
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received.")
+        except Exception as e:
+            logger.warning(f"System tray encountered an issue: {e}. Running in background daemon mode.")
+            try:
+                while service._running:
+                    time.sleep(1.0)
+            except KeyboardInterrupt:
+                logger.info("Keyboard interrupt received.")
         finally:
             service.stop()
     else:
@@ -102,5 +142,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        logger.exception("Fatal unhandled exception in main:")
+        sys.exit(1)
 

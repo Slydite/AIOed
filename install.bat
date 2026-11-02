@@ -83,8 +83,12 @@ set /p AUTOSTART="Enable AIOed to run automatically at Windows startup? (Y/n): "
 if /i "!AUTOSTART!"=="" set "AUTOSTART=Y"
 if /i "!AUTOSTART!"=="Y" (
     reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AIOed_LM360" /t REG_SZ /d "wscript.exe \"%~dp0run_background.vbs\"" /f >nul 2>&1
-    echo       Autostart enabled in Windows Registry!
+    reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "DeepCool" /f >nul 2>&1
+    cscript //nologo create_shortcuts.vbs >nul 2>&1
+    echo       Autostart enabled in Windows Registry and Startup folder!
 ) else (
+    reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AIOed_LM360" /f >nul 2>&1
+    del "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\AIOed Background Service.lnk" >nul 2>&1
     echo       Autostart skipped.
 )
 echo.
