@@ -280,8 +280,6 @@ class DisplayService:
         if deg in (0, 180):
             self.config.set("orientation", deg)
             self.usb.orientation_deg = deg
-            if self.usb.is_connected:
-                self.usb.set_hardware_settings(self.usb.brightness_pct, deg)
             self.wake()
 
     def set_text_config(self, cfg: dict):
@@ -321,6 +319,7 @@ class DisplayService:
         target = max(0, min(100, val))
         self.usb.set_brightness(target)
         self.config.set("brightness", target)
+        self.wake()
 
     def brightness_up(self, step: int = 10):
         new_val = min(100, self.usb.brightness_pct + step)
